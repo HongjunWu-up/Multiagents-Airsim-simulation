@@ -1,11 +1,6 @@
 
 """
 function：利用任伟老师书上算法（3.11），一阶积分器算法，track a reference model.有相对偏差，实现编队。MTP:model to partial agents 假设是部分的agents都知道模型信息！！！
-问题1：要求知道模型的位置信息和速度信息，假如在 airsim 仿真里面还可以实现，假设忽略其他代码执行的时间，每次循环对时间进行积分，对路径进行叠加。
-注意，T_control = 0.01  # 初始化无人机api接口的执行周期 这个参数很重要，越小整个系统越接近连续系统。周期大了的话，则系统有可能发散，
-T_control = 0.1效果就不好
-疑问2：这种方式实现了固定队型追踪，但是最终速度不是2m/s；有点迷。直接加入一个模型无人机，问题得到解决，此时可以直接获取模型的信息
-程序后续优化，尽量把重复同类型的代码用for循环书写，相同类型的数据保存在列表里面，思路，可以用一个字符串的变量数组代表drone？具体看怎么实现
 author： Wu Hongjun
 date  ： 2021.3.22
  """
@@ -22,25 +17,20 @@ Drone_takeoff = [airsim.MultirotorClient().takeoffAsync() for i in range(NumOfDr
 Drone_moveToZ = [airsim.MultirotorClient().moveToZAsync(0, 0) for j in range(NumOfDrones)]  # 上升到指定高度实例化多个对象
 Drone_move = [airsim.MultirotorClient().moveByVelocityAsync(0, 0, 0, 0) for k in range(NumOfDrones)]  # 移动实例化多个对象
 # 后面其实可以用nx3的矩阵保存数据
-X = np.array([[0.0], [-3.0], [-9.0], [-15.0], [-21.0], [-18.0], [-12.0], [-6.0]])  # 初始化坐标信息,其实可以设置为0，后面程序中会检测的。
-Y = np.array([[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
 Z = np.array([[-5.0], [-4.5], [-4.0], [-6.0], [-5.0], [-4.5], [-4.0], [-6.0]])    # 代码优化后可以设置为初始飞行指定高度
 deviation_X = np.array([[0.0], [-3.0], [-9.0], [-15.0], [-21.0], [-18.0], [-12.0], [-6.0]])  # 机体坐标系和全局坐标系之间的初始差距,
-# 可以改成矩阵形式的
-state = np.zeros((len(All_Drones), NumOfState))
-
-model_X = np.array([[3.0], [3.0], [3.0], [3.0], [3.0], [3.0], [3.0], [3.0]])  # 初始化模型初始坐标,对应setting文件中设置好了的
-model_Y = np.array([[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
-model_Z = np.array([[-5.0], [-5.0], [-5.0], [-5.0], [-5.0], [-5.0], [-5.0], [-5.0]])
-model_state = np.zeros((1, NumOfState))
-
-Vx_refer1 = 2*np.ones((8, 1))   # 生成数组默认为浮点型，运动方向朝向x正方向，记住后面程序有对速度进行限幅，速度不能超过3 m/s
-Vy_refer1 = np.zeros((8, 1))
-Vz_refer1 = np.zeros((8, 1))
-V1_model = np.array([[2.0, 0.0, 0.0]])  # 写成1x3矩阵形式，分别代表x y z 的速度
-Vx_refer2 = -2*np.ones((8, 1))   # 运动方向朝向x负方向，记住后面程序有对速度进行限幅，速度不能超过3 m/s
-Vy_refer2 = np.zeros((8, 1))
-Vz_refer2 = np.zeros((8, 1))
+deviation = np.array([[0.0,   0.0, 0.0],
+                      [-3.0,  0.0, 0.0],
+                      [-9.0,  0.0, 0.0],
+                      [-15.0, 0.0, 0.0],
+                      [-21.0, 0.0, 0.0],
+                      [-18.0, 0.0, 0.0],
+                      [-12.0, 0.0, 0.0],
+                      [-6.0,  0.0, 0.0]])
+state = np.zeros((len(All_Drones), NumOfState))   # 每个agent的state 信息，写成矩阵形式的
+model_state = np.zeros((1, NumOfState))  # 初始化模型初始坐标,可以初始为0，对应setting文件中设置好了的初始位置会在while（）第一次循环中得到
+# 模型速度，写成1x3矩阵形式，分别代表x y z 的速度,运动方向朝向x正方向，记住后面程序有对速度进行限幅，速度不能超过3 m/s
+V1_model = np.array([[2.0, 0.0, 0.0]])
 V2_model = np.array([[-2.0, 0.0, 0.0]])  # 写成1x3矩阵形式，分别代表x y z 的速度
 
 Delta_X = np.array([[-3.0], [-6.0], [-9.0], [-12.0], [-15.0], [-12.0], [-9.0], [-6.0]])  # 初始化与模型的偏差信息
@@ -84,28 +74,10 @@ L = D - A   # 拉普拉斯矩阵
 """理论值计算，V列表示特征向量，DL表示对角阵。动态的不能实时预估，仅保留代码，没有任何意义"""
 DL, V = np.linalg.eig(L)
 print(V, DL)
-V = 1/V[0][7] * V
+V = 1/V[0][NumOfDrones-1] * V
 print(V, DL)
 W = np.linalg.inv(V)
 print(W)
-X_final_hat = 0
-Y_final_hat = 0
-Z_final_hat = 0
-X_final = np.zeros((8, 1))
-Y_final = np.zeros((8, 1))
-Z_final = np.zeros((8, 1))
-for i in range(0, 8):   # range 创建列表[0, 1 ... , 7]
-    X_final_hat = X_final_hat+W[7][i] * (X[i][0]-Delta_X[i][0])
-    Y_final_hat = Y_final_hat+W[7][i] * (Y[i][0]-Delta_Y[i][0])
-    Z_final_hat = Z_final_hat+W[7][i] * (Z[i][0]-Delta_Z[i][0])
-print("XYZ_final_hat: ", X_final_hat,  Y_final_hat,  Z_final_hat)
-for i in range(0, 8):
-    X_final[i][0] = X_final_hat+Delta_X[i][0]
-    Y_final[i][0] = Y_final_hat+Delta_Y[i][0]
-    Z_final[i][0] = Z_final_hat+Delta_Z[i][0]
-print("X_final: ", X_final)
-print("Y_final: ", Y_final)
-print("Z_final: ", Z_final)
 
 client = airsim.MultirotorClient()  # connect to the AirSim simulator
 
@@ -139,9 +111,9 @@ while 1:
     model_state[0][2] = client.getMultirotorState(vehicle_name="model").kinematics_estimated.position.z_val
 
     for i in range(NumOfDrones):  # 获取状态 deviation 是机体坐标和全局坐标的偏差
-        state[i][0] = client.getMultirotorState(vehicle_name=All_Drones[i]).kinematics_estimated.position.x_val+deviation_X[i]
-        state[i][1] = client.getMultirotorState(vehicle_name=All_Drones[i]).kinematics_estimated.position.y_val
-        state[i][2] = client.getMultirotorState(vehicle_name=All_Drones[i]).kinematics_estimated.position.z_val
+        state[i][0] = client.getMultirotorState(vehicle_name=All_Drones[i]).kinematics_estimated.position.x_val+deviation[i][0]
+        state[i][1] = client.getMultirotorState(vehicle_name=All_Drones[i]).kinematics_estimated.position.y_val+deviation[i][1]
+        state[i][2] = client.getMultirotorState(vehicle_name=All_Drones[i]).kinematics_estimated.position.z_val+deviation[i][2]
     for i in range(NumOfState):
         for j in range(NumOfDrones):
             add = 0  # 中间求和迭代值
