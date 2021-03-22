@@ -1,13 +1,13 @@
 
 """
-function：利用认为老师书上算法（3.11），一阶积分器算法，track a reference model.有相对偏差，实现编队。MTP:model to partial agents 假设是部分的agents都知道模型信息！！！
+function：利用任伟老师书上算法（3.11），一阶积分器算法，track a reference model.有相对偏差，实现编队。MTP:model to partial agents 假设是部分的agents都知道模型信息！！！
 问题1：要求知道模型的位置信息和速度信息，假如在 airsim 仿真里面还可以实现，假设忽略其他代码执行的时间，每次循环对时间进行积分，对路径进行叠加。
 注意，T_control = 0.01  # 初始化无人机api接口的执行周期 这个参数很重要，越小整个系统越接近连续系统。周期大了的话，则系统有可能发散，
 T_control = 0.1效果就不好
 疑问2：这种方式实现了固定队型追踪，但是最终速度不是2m/s；有点迷。直接加入一个模型无人机，问题得到解决，此时可以直接获取模型的信息
 程序后续优化，尽量把重复同类型的代码用for循环书写，相同类型的数据保存在列表里面，思路，可以用一个字符串的变量数组代表drone？具体看怎么实现
 author： Wu Hongjun
-date  ： 2021.3.20
+date  ： 2021.3.22
  """
 import airsim
 import numpy as np

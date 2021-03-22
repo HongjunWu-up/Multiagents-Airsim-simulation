@@ -3,6 +3,7 @@
 function：一阶积分器算法，track a reference model.有相对偏差，实现编队。MTF: model to father 假设只有父节点知道模型信息！！！
 问题：要求知道模型的位置信息和速度信息，假如在airsim仿真里面还可以实现，假设忽略其他代码执行的时间，每次循环对时间进行积分，对路径进行叠加。
 程序后续优化，尽量把重复同类型的代码用for循环书写，相同类型的数据保存在列表里面，思路，可以用一个字符串的变量数组代表drone？具体看怎么实现
+问题：# 有问题，速度打了就不能进行追踪
 author： Wu Hongjun
 date  ： 2021.3.16
  """
@@ -202,7 +203,7 @@ while (1):
         print("drone", i+1, ":  u_xyz:", U_X[i][0], U_Y[i][0], U_Z[i][0], "XYZ:", X[i][0], Y[i][0], Z[i][0])
     # print("drone", 3, ":  u_xyz:", U_X[2][0], U_Y[2][0], U_Z[2][0], "XYZ:", X[2][0], Y[2][0], Z[2][0])
     # drone1 作为father  node ，只有他知道model的信息
-    Drone1 = client.moveByVelocityAsync(0.01, Vy_refer1[0][0], Vz_refer1[0][0], T_control, vehicle_name="Drone1")
+    Drone1 = client.moveByVelocityAsync(0.01, Vy_refer1[0][0], Vz_refer1[0][0], T_control, vehicle_name="Drone1")  # 有问题，速度打了就不能进行追踪
     Drone2 = client.moveByVelocityAsync(U_X[1][0], U_Y[1][0], U_Z[1][0], T_control, vehicle_name="Drone2")
     Drone3 = client.moveByVelocityAsync(U_X[2][0], U_Y[2][0], U_Z[2][0], T_control, vehicle_name="Drone3")
     Drone4 = client.moveByVelocityAsync(U_X[3][0], U_Y[3][0], U_Z[3][0], T_control, vehicle_name="Drone4")
