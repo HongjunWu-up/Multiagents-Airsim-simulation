@@ -6,6 +6,8 @@ date  ： 2021.3.22
  """
 import airsim
 import numpy as np
+import time
+import math
 # 参数初始化
 # 初始化载入的无人机，数量用len(Drone)表示 注意不要写成 All_Drones = ['"Drone1"', '"Drone2"'...] 形式，虽然print是"Drone1"，但是实际是'"Drone1"'
 All_Drones = ["Drone1", "Drone2", "Drone3", "Drone4", "Drone5", "Drone6", "Drone7", "Drone8"]  # 无人机在此添加
@@ -104,6 +106,8 @@ model.join()
 for i in range(0, len(All_Drones)):
     Drone_moveToZ[i].join()
 
+pos_reserve = np.zeros((1, NumOfState))   # 画图，上一个位置点
+
 while 1:
 
     model_state[0][0] = client.getMultirotorState(vehicle_name="model").kinematics_estimated.position.x_val+3
@@ -121,7 +125,8 @@ while 1:
                 add += A[j][k]*(U_control[k][i]-gamma*((state[j][i]-state[k][i])-(Delta[j][i]-Delta[k][i])))
             U_control[j][i] = 1/D[j][j]*(add+A[j][NumOfDrones] *
                                          (V1_model[0][i]-gamma*(state[j][i]-Delta[j][i]-model_state[0][i])))
-
+    code_time = time.time()
+    V1_model = np.array([[2.0, math.sin(code_time/5), 0.0]])
     # U_X = np.dot(-(L+Q), X-Delta_X-model_X)+Vx_refer1
     # U_Y = np.dot(-(L+Q), Y-Delta_Y-model_Y)+Vy_refer1
     # U_Z = np.dot(-(L+Q), Z-Delta_Z-model_Z)+Vz_refer1
@@ -145,7 +150,11 @@ while 1:
     model.join()
     for i in range(NumOfDrones):
         Drone_move[i].join()
-
+    # 下面的几行代码是画图代码
+    point_reserve = [airsim.Vector3r(pos_reserve[0, 0], pos_reserve[0, 1], pos_reserve[0, 2])]
+    point = [airsim.Vector3r(model_state[0][0], model_state[0][1], model_state[0][2])]
+    client.simPlotLineList(point_reserve + point, color_rgba=[1.0, 0.0, 0.0, 1.0], is_persistent=True)
+    pos_reserve = model_state
 # 悬停 2 秒钟,由于是while（1），所以不会执行到这一句
 model = client.hoverAsync(vehicle_name="model")  # 第四阶段：悬停6秒钟
 Drone = [airsim.MultirotorClient().hoverAsync() for i in range(len(All_Drones))]  # 实例化多个对象
